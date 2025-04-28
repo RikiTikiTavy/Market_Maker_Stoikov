@@ -12,3 +12,6 @@ docs/
 
 # Dotenv file
 .env
+
+/venv_mm
+.python-version
