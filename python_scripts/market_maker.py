@@ -35,7 +35,7 @@ MM_ADDRESS = Web3.toChecksumAddress(os.getenv("MM_ADDRESS"))
 HASHFLOW_ADDRESS = Web3.toChecksumAddress(os.getenv("HASHFLOW_ADDRESS"))
 ETH_ADDRESS = Web3.toChecksumAddress(os.getenv("ETH_ADDRESS"))
 USDC_ADDRESS = Web3.toChecksumAddress(os.getenv("USDC_ADDRESS"))
-CHAIN_ID = os.getenv("CHAIN_ID")
+CHAIN_ID = int(os.getenv("CHAIN_ID"))
 
 app = FastAPI()
 
@@ -129,7 +129,7 @@ def get_stoikov_prices(volume_eth: float):
 
     eth_balance, usdc_balance = get_balance()
 
-    eth = float(w3.from_wei(eth_balance, 'ether'))
+    eth = float(w3.fromWei(eth_balance, 'ether'))
   
     inventory = eth - (usdc_balance / binance_mid_price) # баланс портфеля: ETH минус эквивалент USDC в ETH
     
@@ -198,7 +198,7 @@ def sign_quote(message):
     domain = {
         "name": "Hashflow RFQ",
         "version": "1",
-        "chainId": int(CHAIN_ID),
+        "chainId": CHAIN_ID,
         "verifyingContract": HASHFLOW_ADDRESS
     }
 
@@ -291,11 +291,11 @@ def listen_to_executions():
     while True:
         for event in event_filter.get_new_entries():
             trader = event['args']['trader']
-            amount = w3.from_wei(event['args']['baseAmount'], 'ether')
+            amount = w3.fromWei(event['args']['baseAmount'], 'ether')
 
             print(f"Trade executed by {trader}, amount: {amount:.4f} ETH")
             total_ETH_balance, MM_USDC_balance = get_balance()
-            print(f"ETH balance: {w3.from_wei(total_ETH_balance, 'ether')} ETH")
+            print(f"ETH balance: {w3.fromWei(total_ETH_balance, 'ether')} ETH")
             print(f"USDC balance: {MM_USDC_balance} USDC")
 
         time.sleep(1)

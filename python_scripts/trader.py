@@ -42,7 +42,7 @@ def execute_trade(quote: dict, is_selling_eth: bool):
         int(quote["quoteAmount"] * 1e6),
         int(quote["price"] * 1e6),
         int(quote["expiry"]),
-        Web3.to_checksum_address(quote["maker"]),
+        Web3.toChecksumAddress(quote["maker"]),
         TRADER_ADDRESS,
         bytes.fromhex(quote["signature"][2:])
     )
@@ -52,7 +52,7 @@ def execute_trade(quote: dict, is_selling_eth: bool):
         'value': eth_value,
         'nonce': w3.eth.get_transaction_count(TRADER_ADDRESS),
         'gas': 200_000,
-        'gasPrice': w3.to_wei('1', 'gwei')
+        'gasPrice': w3.toWei('1', 'gwei')
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, TRADER_PRIVATE_KEY)
@@ -104,7 +104,7 @@ def approve_usdc(amount: float):
         'from': TRADER_ADDRESS,
         'nonce': nonce,
         'gas': 100_000,
-        'gasPrice': w3.to_wei('1', 'gwei')
+        'gasPrice': w3.toWei('1', 'gwei')
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, TRADER_PRIVATE_KEY)
