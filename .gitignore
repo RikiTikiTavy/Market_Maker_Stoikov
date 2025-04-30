@@ -16,3 +16,4 @@ docs/
 
 /venv_mm
 .python-version
+__pycache__/

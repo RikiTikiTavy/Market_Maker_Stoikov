@@ -54,7 +54,7 @@ def compute_k(volume_eth: float):
     print("k_ask ", k_ask)
 
 
-
+    # Old K computing
     best_bid = float(data['bids'][0][0])
     best_ask = float(data['asks'][0][0])
 

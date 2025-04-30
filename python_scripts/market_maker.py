@@ -1,5 +1,3 @@
-# MVP Market Maker for Hashflow (USD+ / wETH) with EIP-712 signature
-
 import time
 import requests
 import uvicorn
@@ -11,13 +9,15 @@ from dotenv import load_dotenv
 from eth_utils import to_checksum_address
 from web3 import Web3
 import threading
+from RL_agent import USDCOnlyRLAgent
 import json
 import numpy as np
 import time
+from eth_account.messages import encode_structured_data
 
 load_dotenv()
 
-# Загружаем ABI из compiled Forge output
+# Загружаем ABI из Forge out
 def load_abi(path):
     with open(path, "r") as f:
         artifact = json.load(f)
@@ -36,9 +36,11 @@ HASHFLOW_ADDRESS = Web3.toChecksumAddress(os.getenv("HASHFLOW_ADDRESS"))
 ETH_ADDRESS = Web3.toChecksumAddress(os.getenv("ETH_ADDRESS"))
 USDC_ADDRESS = Web3.toChecksumAddress(os.getenv("USDC_ADDRESS"))
 CHAIN_ID = int(os.getenv("CHAIN_ID"))
+SESSION_START = time.time()
+TRADE_PERIOD = 3600 # торгуем в течение часа
 
 app = FastAPI()
-
+RL_agent = USDCOnlyRLAgent()
 
 class RFQ(BaseModel):
     baseToken: str
@@ -46,7 +48,7 @@ class RFQ(BaseModel):
     baseAmount: float
     trader: str
     chainId: int
-
+    TRADER_MODE: str
 
 
 def compute_volatility():
@@ -114,15 +116,9 @@ def get_stoikov_prices(volume_eth: float):
     
     gamma = 0.4 # насколько мы боимся рынка
     k_bid, k_ask = compute_k(volume_eth) # ликвидность
-
-
-    time_horizon = 3600 # торгуем в течение часа
     
     vol_second = compute_volatility()
     
-
-    start_time = time.time() - 10  # Пример: торговля началась 10 секунд назад
-
     binance_bid, binance_ask = get_binance_price()
     
     binance_mid_price = (binance_bid + binance_ask) / 2
@@ -133,13 +129,14 @@ def get_stoikov_prices(volume_eth: float):
   
     inventory = eth - (usdc_balance / binance_mid_price) # баланс портфеля: ETH минус эквивалент USDC в ETH
     
-    t = time.time() - start_time # сколько времени осталось до конца торгов
-    T_minus_t = max(1e-9, time_horizon - t) # чтобы не было нуля
+    time_since_start = time.time() - SESSION_START # время с начала запуска
+    time_remaining = TRADE_PERIOD - time_since_start
 
-    reservation_price = binance_mid_price - inventory * gamma * vol_second**2 * T_minus_t # справедливая цена с учётом позиции и оставшегося времени
 
-    stoikov_bid_price = reservation_price - (gamma * vol_second**2 * T_minus_t + (2 / gamma) * np.log(1 + gamma / k_bid)) / 2
-    stoikov_ask_price = reservation_price + (gamma * vol_second**2 * T_minus_t + (2 / gamma) * np.log(1 + gamma / k_ask)) / 2
+    reservation_price = binance_mid_price - inventory * gamma * vol_second**2 * time_remaining # справедливая цена с учётом позиции и оставшегося времени
+
+    stoikov_bid_price = reservation_price - (gamma * vol_second**2 * time_remaining + (2 / gamma) * np.log(1 + gamma / k_bid)) / 2
+    stoikov_ask_price = reservation_price + (gamma * vol_second**2 * time_remaining + (2 / gamma) * np.log(1 + gamma / k_ask)) / 2
 
     print(f"inventory {inventory}")
     print(f"Reservation price: {reservation_price}")
@@ -177,13 +174,10 @@ def approve_usdc(amount: float):
 
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     print(f"Approve confirmed in block {receipt.blockNumber}")
-
-
+    
 
 # Sign quote using EIP-712
 
-from eth_account import Account
-from eth_account.messages import encode_structured_data
 
 def sign_quote(message):
     quote_type = [
@@ -231,11 +225,20 @@ def sign_quote(message):
 
 @app.post("/quote")
 async def get_quote(rfq: RFQ):
-
     
     expiry_ts = int(time.time()) + 60
 
     is_selling_eth = Web3.toChecksumAddress(rfq.baseToken) == ETH_ADDRESS
+
+    #RL
+    
+
+    pred = RL_agent.predict(is_selling_eth, rfq.baseAmount)
+
+    RL_agent.update(rfq.baseAmount, is_selling_eth, rfq.TRADER_MODE)
+    
+    print(f"RL PREDICT:{pred}", f"TRADER MODE: {rfq.TRADER_MODE}", f"baseAmount: {rfq.baseAmount}")
+    #RL
 
     stoikov_bid_price, stoikov_ask_price = get_stoikov_prices(rfq.baseAmount)
 

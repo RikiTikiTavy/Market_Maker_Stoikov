@@ -26,6 +26,7 @@ TRADER_PRIVATE_KEY = os.getenv("TRADER_PRIVATE_KEY")
 CHAIN_ID = os.getenv("CHAIN_ID")
 QUOTE_ENDPOINT = "http://localhost:8000/quote"
 
+
 ANVIL_URL = os.getenv("ANVIL_URL")
 w3 = Web3(Web3.HTTPProvider(ANVIL_URL))
 
@@ -64,21 +65,26 @@ def execute_trade(quote: dict, is_selling_eth: bool):
 
 async def send_rfq(session, is_selling_eth: bool):
 
+    TRADER_MODE = random.choice(["aggressive", "conservative"])
+
+    multiplier = 2.0 if TRADER_MODE == "aggressive" else 1
+
     if is_selling_eth:
         base_token = ETH_ADDRESS
         quote_token = USDC_ADDRESS
-        base_amount = round(random.uniform(0.1, 2.0), 4)  # ETH
+        base_amount = round(random.uniform(1.5, 2.0), 4) * multiplier  # ETH
     else:
         base_token = USDC_ADDRESS
         quote_token = ETH_ADDRESS
-        base_amount = round(random.uniform(500, 5000), 2)  # USDC
+        base_amount = round(random.uniform(2000, 3000), 2) * multiplier  # USDC
 
     rfq = {
         "baseToken": base_token,
         "quoteToken": quote_token,
         "baseAmount": base_amount,
         "trader": TRADER_ADDRESS,
-        "chainId": CHAIN_ID
+        "chainId": CHAIN_ID,
+        "TRADER_MODE": TRADER_MODE
     }
 
     print("=== RFQ ===")
@@ -115,7 +121,9 @@ def approve_usdc(amount: float):
 async def main():
     async with aiohttp.ClientSession() as session:
         while True:
-            await send_rfq(session, is_selling_eth=random.choice([True, False]))
+            is_selling_eth=random.choice([True, False])
+            is_selling_eth = False
+            await send_rfq(session, is_selling_eth)
             await asyncio.sleep(10)
 
 if __name__ == "__main__":
