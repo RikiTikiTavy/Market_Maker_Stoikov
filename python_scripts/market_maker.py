@@ -218,11 +218,6 @@ def sign_quote(message):
     return signed.signature.hex()
 
 
-
-
-
-
-
 @app.post("/quote")
 async def get_quote(rfq: RFQ):
     
@@ -230,15 +225,15 @@ async def get_quote(rfq: RFQ):
 
     is_selling_eth = Web3.toChecksumAddress(rfq.baseToken) == ETH_ADDRESS
 
-    #RL
-    
+    #RL AGENT
+    if is_selling_eth == False:
 
-    pred = RL_agent.predict(is_selling_eth, rfq.baseAmount)
+        pred = RL_agent.predict(is_selling_eth, rfq.baseAmount)
 
-    RL_agent.update(rfq.baseAmount, is_selling_eth, rfq.TRADER_MODE)
-    
-    print(f"RL PREDICT:{pred}", f"TRADER MODE: {rfq.TRADER_MODE}", f"baseAmount: {rfq.baseAmount}")
-    #RL
+        RL_agent.update(rfq.baseAmount, is_selling_eth, rfq.TRADER_MODE)
+        
+        print(f"RL PREDICT:{pred}", f"TRADER MODE: {rfq.TRADER_MODE}", f"baseAmount: {rfq.baseAmount}")
+    #RL AGENT
 
     stoikov_bid_price, stoikov_ask_price = get_stoikov_prices(rfq.baseAmount)
 

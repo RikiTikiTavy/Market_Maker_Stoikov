@@ -122,7 +122,6 @@ async def main():
     async with aiohttp.ClientSession() as session:
         while True:
             is_selling_eth=random.choice([True, False])
-            is_selling_eth = False
             await send_rfq(session, is_selling_eth)
             await asyncio.sleep(10)
 
